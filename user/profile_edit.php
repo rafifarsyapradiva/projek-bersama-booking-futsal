@@ -3,81 +3,121 @@ session_start();
 
 // Cek login
 if (!isset($_SESSION['user_id'])) {
-    $_SESSION['error_message'] = 'Silakan login terlebih dahulu!';
     header('Location: login.php');
     exit;
 }
 
-// Ambil data user
-$userData = null;
-foreach ($_SESSION['users'] as &$user) {
-    if ($user['id'] == $_SESSION['user_id']) {
-        $userData = &$user;
-        break;
-    }
+// Inisialisasi data dummy jika belum ada
+if (!isset($_SESSION['users'])) {
+    $_SESSION['users'] = [
+        [
+            'id' => 1,
+            'nama' => 'Ahmad Rizki',
+            'email' => 'ahmad.rizki@email.com',
+            'password' => password_hash('password123', PASSWORD_DEFAULT),
+            'telepon' => '081234567890',
+            'alamat' => 'Jl. Pemuda No. 123, Semarang',
+            'foto' => 'https://ui-avatars.com/api/?name=Ahmad+Rizki&background=10b981&color=fff&size=200',
+            'member_since' => '2024-01-15',
+            'total_booking' => 12,
+            'points' => 1200
+        ]
+    ];
 }
 
 $success = '';
 $error = '';
-$errors = [];
+$user = null;
 
-// Handle form submission
+// Ambil data user yang login
+foreach ($_SESSION['users'] as &$u) {
+    if ($u['id'] == $_SESSION['user_id']) {
+        $user = &$u;
+        break;
+    }
+}
+
+// Handle form update profil
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $action = $_POST['action'] ?? '';
-    
-    if ($action == 'update_profile') {
+    if (isset($_POST['update_profile'])) {
         $nama = trim($_POST['nama'] ?? '');
         $telepon = trim($_POST['telepon'] ?? '');
         $alamat = trim($_POST['alamat'] ?? '');
         
-        // Validasi
-        if (empty($nama)) $errors[] = 'Nama harus diisi';
-        if (empty($telepon)) $errors[] = 'Telepon harus diisi';
-        if (!preg_match('/^[0-9]{10,13}$/', $telepon)) $errors[] = 'Format telepon tidak valid';
-        if (empty($alamat)) $errors[] = 'Alamat harus diisi';
-        
-        if (empty($errors)) {
-            $userData['nama'] = $nama;
-            $userData['telepon'] = $telepon;
-            $userData['alamat'] = $alamat;
-            
-            // Update session
-            $_SESSION['user_nama'] = $nama;
-            
-            $success = 'Profil berhasil diperbarui!';
+        if (empty($nama) || empty($telepon) || empty($alamat)) {
+            $error = 'Semua field harus diisi!';
+        } elseif (!preg_match('/^[0-9]{10,13}$/', $telepon)) {
+            $error = 'Format nomor telepon tidak valid (10-13 digit)!';
         } else {
-            $error = implode('<br>', $errors);
+            $user['nama'] = $nama;
+            $user['telepon'] = $telepon;
+            $user['alamat'] = $alamat;
+            $_SESSION['user_nama'] = $nama;
+            $success = 'Profil berhasil diperbarui!';
         }
-    } 
-    elseif ($action == 'change_password') {
+    }
+    
+    // Handle ubah password
+    elseif (isset($_POST['change_password'])) {
         $old_password = $_POST['old_password'] ?? '';
         $new_password = $_POST['new_password'] ?? '';
         $confirm_password = $_POST['confirm_password'] ?? '';
         
-        // Validasi
-        if (!password_verify($old_password, $userData['password'])) {
-            $errors[] = 'Password lama tidak sesuai';
-        }
-        if (strlen($new_password) < 6) {
-            $errors[] = 'Password baru minimal 6 karakter';
-        }
-        if ($new_password !== $confirm_password) {
-            $errors[] = 'Konfirmasi password tidak cocok';
-        }
-        
-        if (empty($errors)) {
-            $userData['password'] = password_hash($new_password, PASSWORD_DEFAULT);
-            $success = 'Password berhasil diubah!';
+        if (empty($old_password) || empty($new_password) || empty($confirm_password)) {
+            $error = 'Semua field password harus diisi!';
+        } elseif (!password_verify($old_password, $user['password'])) {
+            $error = 'Password lama tidak sesuai!';
+        } elseif (strlen($new_password) < 6) {
+            $error = 'Password baru minimal 6 karakter!';
+        } elseif ($new_password !== $confirm_password) {
+            $error = 'Konfirmasi password tidak cocok!';
         } else {
-            $error = implode('<br>', $errors);
+            $user['password'] = password_hash($new_password, PASSWORD_DEFAULT);
+            $success = 'Password berhasil diubah!';
         }
     }
-    elseif ($action == 'change_avatar') {
-        $avatar_style = $_POST['avatar_style'] ?? 'initials';
-        $userData['foto'] = 'https://ui-avatars.com/api/?name=' . urlencode($userData['nama']) . '&background=' . substr(md5($avatar_style), 0, 6) . '&color=fff&size=200';
+    
+    // Handle ganti avatar
+    elseif (isset($_POST['change_avatar'])) {
+        $avatar_color = $_POST['avatar_color'] ?? '10b981';
+        $user['foto'] = 'https://ui-avatars.com/api/?name=' . urlencode($user['nama']) . '&background=' . $avatar_color . '&color=fff&size=200';
+        $_SESSION['user_foto'] = $user['foto'];
         $success = 'Avatar berhasil diubah!';
     }
+    
+    // Handle delete account
+    elseif (isset($_POST['delete_account'])) {
+        $password = $_POST['confirm_delete_password'] ?? '';
+        
+        if (!password_verify($password, $user['password'])) {
+            $error = 'Password salah! Akun tidak dapat dihapus.';
+        } else {
+            // Hapus user dari session
+            foreach ($_SESSION['users'] as $key => $u) {
+                if ($u['id'] == $_SESSION['user_id']) {
+                    unset($_SESSION['users'][$key]);
+                    break;
+                }
+            }
+            
+            // Logout
+            session_destroy();
+            header('Location: ../index.php?deleted=1');
+            exit;
+        }
+    }
 }
+
+$avatar_colors = [
+    '10b981' => 'Green',
+    '3b82f6' => 'Blue',
+    'a855f7' => 'Purple',
+    'f59e0b' => 'Orange',
+    'ef4444' => 'Red',
+    'ec4899' => 'Pink',
+    '6366f1' => 'Indigo',
+    '14b8a6' => 'Teal'
+];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -92,227 +132,193 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .fade-in { animation: fadeIn 0.6s ease-out; }
-        .avatar-option { transition: all 0.3s ease; }
-        .avatar-option:hover { transform: scale(1.1); }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        .password-strength {
+            height: 4px;
+            transition: all 0.3s;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-purple-50 to-blue-50 min-h-screen">
+<body class="bg-gray-50">
     <!-- Header -->
-    <header class="bg-white shadow-lg sticky top-0 z-50">
-        <nav class="container mx-auto px-6 py-4">
+    <header class="bg-gradient-to-r from-green-600 to-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
-                <a href="../index.php" class="flex items-center space-x-2">
-                    <i class="fas fa-futbol text-green-600 text-3xl"></i>
-                    <span class="text-2xl font-bold text-gray-800">Reham Futsal</span>
-                </a>
-                <div class="hidden md:flex items-center space-x-6">
-                    <a href="dashboard.php" class="text-gray-700 hover:text-green-600 transition">
-                        <i class="fas fa-arrow-left mr-2"></i>Kembali ke Dashboard
+                <div class="flex items-center space-x-4">
+                    <a href="dashboard.php" class="hover:scale-110 transition">
+                        <i class="fas fa-arrow-left text-2xl"></i>
                     </a>
+                    <div>
+                        <h1 class="text-2xl font-bold">Edit Profil</h1>
+                        <p class="text-green-100 text-sm">Kelola informasi akun Anda</p>
+                    </div>
                 </div>
+                <a href="dashboard.php" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-times mr-2"></i>Tutup
+                </a>
             </div>
-        </nav>
+        </div>
     </header>
 
-    <div class="container mx-auto px-6 py-8">
-        <!-- Notifications -->
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
         <?php if ($success): ?>
-        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 px-6 py-4 rounded-lg mb-6 fade-in">
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-6 fade-in">
             <div class="flex items-center">
-                <i class="fas fa-check-circle text-2xl mr-3"></i>
-                <span class="font-semibold"><?php echo htmlspecialchars($success); ?></span>
+                <i class="fas fa-check-circle mr-2 text-xl"></i>
+                <span><?php echo htmlspecialchars($success); ?></span>
             </div>
         </div>
         <?php endif; ?>
 
         <?php if ($error): ?>
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 px-6 py-4 rounded-lg mb-6 fade-in">
-            <div class="flex items-start">
-                <i class="fas fa-exclamation-circle text-2xl mr-3 mt-0.5"></i>
-                <div>
-                    <p class="font-semibold mb-1">Terjadi kesalahan:</p>
-                    <div class="text-sm"><?php echo $error; ?></div>
-                </div>
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-6 fade-in">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-circle mr-2 text-xl"></i>
+                <span><?php echo htmlspecialchars($error); ?></span>
             </div>
         </div>
         <?php endif; ?>
 
-        <!-- Title -->
-        <div class="text-center mb-8 fade-in">
-            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-3">
-                <i class="fas fa-user-edit text-purple-600 mr-2"></i>Edit Profil
-            </h1>
-            <p class="text-gray-600 text-lg">Kelola informasi dan keamanan akun Anda</p>
-        </div>
-
-        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Sidebar Profile Card -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Sidebar - Avatar -->
             <div class="lg:col-span-1">
-                <div class="bg-white rounded-2xl shadow-xl p-6 fade-in sticky top-24">
-                    <div class="text-center mb-6">
-                        <div class="relative inline-block">
-                            <img src="<?php echo $userData['foto']; ?>" alt="Profile" class="w-32 h-32 rounded-full border-4 border-purple-500 shadow-lg mx-auto mb-4">
-                            <button onclick="document.getElementById('avatarModal').classList.remove('hidden')" class="absolute bottom-2 right-2 bg-purple-600 text-white w-10 h-10 rounded-full hover:bg-purple-700 transition shadow-lg">
-                                <i class="fas fa-camera"></i>
+                <div class="bg-white rounded-xl shadow-md p-6 fade-in">
+                    <div class="text-center">
+                        <img src="<?php echo htmlspecialchars($user['foto']); ?>" alt="Avatar" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500">
+                        <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($user['nama']); ?></h3>
+                        <p class="text-gray-500 text-sm"><?php echo htmlspecialchars($user['email']); ?></p>
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <p class="text-xs text-gray-500 mb-1">Member sejak</p>
+                            <p class="text-sm font-semibold text-green-600">
+                                <?php echo date('d M Y', strtotime($user['member_since'])); ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Ganti Avatar -->
+                    <form method="POST" class="mt-6">
+                        <h4 class="font-semibold text-gray-700 mb-3 flex items-center">
+                            <i class="fas fa-palette mr-2 text-purple-600"></i>Ganti Warna Avatar
+                        </h4>
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <?php foreach ($avatar_colors as $color => $name): ?>
+                            <button type="submit" name="change_avatar" value="submit" 
+                                onclick="document.querySelector('input[name=avatar_color]').value='<?php echo $color; ?>'"
+                                class="w-12 h-12 rounded-full hover:scale-110 transition border-2 border-gray-300 hover:border-<?php echo $name; ?>-500"
+                                style="background-color: #<?php echo $color; ?>" title="<?php echo $name; ?>">
                             </button>
+                            <?php endforeach; ?>
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-800 mb-1"><?php echo htmlspecialchars($userData['nama']); ?></h3>
-                        <p class="text-gray-500 text-sm mb-4"><?php echo htmlspecialchars($userData['email']); ?></p>
-                        <div class="flex justify-center gap-2">
-                            <span class="bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-semibold">
-                                <i class="fas fa-crown mr-1"></i>
-                                <?php 
-                                $level = 'Bronze';
-                                if ($userData['total_booking'] >= 20) $level = 'Platinum';
-                                elseif ($userData['total_booking'] >= 10) $level = 'Gold';
-                                elseif ($userData['total_booking'] >= 5) $level = 'Silver';
-                                echo $level;
-                                ?> Member
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div class="border-t pt-4 space-y-3 text-sm">
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-600">Total Booking:</span>
-                            <span class="font-bold text-gray-800"><?php echo $userData['total_booking']; ?>x</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-600">Poin Reward:</span>
-                            <span class="font-bold text-green-600"><?php echo $userData['points']; ?> pts</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-600">Member Sejak:</span>
-                            <span class="font-bold text-gray-800"><?php echo date('M Y', strtotime($userData['member_since'])); ?></span>
-                        </div>
-                    </div>
+                        <input type="hidden" name="avatar_color" value="10b981">
+                    </form>
                 </div>
             </div>
 
             <!-- Main Content -->
             <div class="lg:col-span-2 space-y-6">
-                <!-- Edit Profil Form -->
-                <div class="bg-white rounded-2xl shadow-xl p-8 fade-in">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
-                        <i class="fas fa-user text-blue-600 mr-2"></i>Informasi Pribadi
-                    </h2>
-                    <form method="POST" class="space-y-6">
-                        <input type="hidden" name="action" value="update_profile">
-                        
+                <!-- Update Profil -->
+                <div class="bg-white rounded-xl shadow-md p-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-user-edit mr-2 text-blue-600"></i>Informasi Pribadi
+                    </h3>
+                    <form method="POST" class="space-y-4">
                         <div>
                             <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-user text-purple-600 mr-2"></i>Nama Lengkap
+                                <i class="fas fa-user text-gray-400 mr-2"></i>Nama Lengkap
                             </label>
-                            <input type="text" name="nama" required 
-                                value="<?php echo htmlspecialchars($userData['nama']); ?>"
-                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition">
+                            <input type="text" name="nama" value="<?php echo htmlspecialchars($user['nama']); ?>" required
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none">
                         </div>
-
                         <div>
                             <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-envelope text-purple-600 mr-2"></i>Email
+                                <i class="fas fa-envelope text-gray-400 mr-2"></i>Email
                             </label>
-                            <input type="email" 
-                                value="<?php echo htmlspecialchars($userData['email']); ?>"
-                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" disabled>
-                            <p class="text-xs text-gray-500 mt-1"><i class="fas fa-info-circle mr-1"></i>Email tidak dapat diubah</p>
+                            <input type="email" value="<?php echo htmlspecialchars($user['email']); ?>" disabled
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed">
+                            <p class="text-xs text-gray-500 mt-1">Email tidak dapat diubah</p>
                         </div>
-
                         <div>
                             <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-phone text-purple-600 mr-2"></i>Nomor Telepon
+                                <i class="fas fa-phone text-gray-400 mr-2"></i>Nomor Telepon
                             </label>
-                            <input type="tel" name="telepon" required pattern="[0-9]{10,13}"
-                                value="<?php echo htmlspecialchars($userData['telepon']); ?>"
-                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition">
+                            <input type="tel" name="telepon" value="<?php echo htmlspecialchars($user['telepon']); ?>" required
+                                pattern="[0-9]{10,13}"
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none">
                         </div>
-
                         <div>
                             <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-map-marker-alt text-purple-600 mr-2"></i>Alamat Lengkap
+                                <i class="fas fa-map-marker-alt text-gray-400 mr-2"></i>Alamat
                             </label>
-                            <textarea name="alamat" required rows="4"
-                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none transition"><?php echo htmlspecialchars($userData['alamat']); ?></textarea>
+                            <textarea name="alamat" rows="3" required
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none"><?php echo htmlspecialchars($user['alamat']); ?></textarea>
                         </div>
-
-                        <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:from-purple-700 hover:to-blue-700 transition shadow-lg">
+                        <button type="submit" name="update_profile"
+                            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition">
                             <i class="fas fa-save mr-2"></i>Simpan Perubahan
                         </button>
                     </form>
                 </div>
 
-                <!-- Change Password Form -->
-                <div class="bg-white rounded-2xl shadow-xl p-8 fade-in">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
-                        <i class="fas fa-lock text-red-600 mr-2"></i>Keamanan Akun
-                    </h2>
-                    <form method="POST" class="space-y-6">
-                        <input type="hidden" name="action" value="change_password">
-                        
+                <!-- Ubah Password -->
+                <div class="bg-white rounded-xl shadow-md p-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-lock mr-2 text-purple-600"></i>Keamanan Akun
+                    </h3>
+                    <form method="POST" id="passwordForm" class="space-y-4">
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-key text-red-600 mr-2"></i>Password Lama
-                            </label>
+                            <label class="block text-gray-700 font-semibold mb-2">Password Lama</label>
                             <div class="relative">
-                                <input type="password" name="old_password" id="old_password" required 
-                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-600 focus:outline-none transition pr-12"
-                                    placeholder="Masukkan password lama">
-                                <button type="button" onclick="togglePassword('old_password', 'old_icon')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                    <i class="fas fa-eye" id="old_icon"></i>
+                                <input type="password" name="old_password" id="old_password" required
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none pr-12">
+                                <button type="button" onclick="togglePassword('old_password', 'icon1')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                    <i class="fas fa-eye" id="icon1"></i>
                                 </button>
                             </div>
                         </div>
-
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-lock text-red-600 mr-2"></i>Password Baru
-                            </label>
+                            <label class="block text-gray-700 font-semibold mb-2">Password Baru</label>
                             <div class="relative">
-                                <input type="password" name="new_password" id="new_password" required 
-                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-600 focus:outline-none transition pr-12"
-                                    placeholder="Minimal 6 karakter">
-                                <button type="button" onclick="togglePassword('new_password', 'new_icon')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                    <i class="fas fa-eye" id="new_icon"></i>
+                                <input type="password" name="new_password" id="new_password" required
+                                    oninput="checkPasswordStrength()"
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none pr-12">
+                                <button type="button" onclick="togglePassword('new_password', 'icon2')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                    <i class="fas fa-eye" id="icon2"></i>
                                 </button>
                             </div>
-                            <div id="password-strength" class="mt-2"></div>
+                            <div class="mt-2">
+                                <div class="password-strength bg-gray-200 rounded-full overflow-hidden">
+                                    <div id="strength-bar" class="h-full transition-all"></div>
+                                </div>
+                                <p id="strength-text" class="text-xs mt-1"></p>
+                            </div>
                         </div>
-
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">
-                                <i class="fas fa-lock text-red-600 mr-2"></i>Konfirmasi Password Baru
-                            </label>
+                            <label class="block text-gray-700 font-semibold mb-2">Konfirmasi Password Baru</label>
                             <div class="relative">
-                                <input type="password" name="confirm_password" id="confirm_password" required 
-                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-600 focus:outline-none transition pr-12"
-                                    placeholder="Ulangi password baru">
-                                <button type="button" onclick="togglePassword('confirm_password', 'confirm_icon')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                    <i class="fas fa-eye" id="confirm_icon"></i>
+                                <input type="password" name="confirm_password" id="confirm_password" required
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none pr-12">
+                                <button type="button" onclick="togglePassword('confirm_password', 'icon3')" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                    <i class="fas fa-eye" id="icon3"></i>
                                 </button>
                             </div>
                         </div>
-
-                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                            <p class="text-sm text-yellow-800">
-                                <i class="fas fa-exclamation-triangle mr-2"></i>
-                                <span class="font-semibold">Perhatian:</span> Setelah mengubah password, Anda akan tetap login di sesi ini.
-                            </p>
-                        </div>
-
-                        <button type="submit" class="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-4 rounded-lg font-bold text-lg hover:from-red-700 hover:to-pink-700 transition shadow-lg">
-                            <i class="fas fa-shield-alt mr-2"></i>Ubah Password
+                        <button type="submit" name="change_password"
+                            class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition">
+                            <i class="fas fa-key mr-2"></i>Ubah Password
                         </button>
                     </form>
                 </div>
 
-                <!-- Delete Account -->
-                <div class="bg-white rounded-2xl shadow-xl p-8 fade-in border-2 border-red-200">
-                    <h2 class="text-2xl font-bold text-red-600 mb-4">
+                <!-- Zona Bahaya -->
+                <div class="bg-white rounded-xl shadow-md p-6 border-2 border-red-200 fade-in">
+                    <h3 class="text-xl font-bold text-red-600 mb-4 flex items-center">
                         <i class="fas fa-exclamation-triangle mr-2"></i>Zona Bahaya
-                    </h2>
-                    <p class="text-gray-600 mb-6">Tindakan di bawah ini bersifat permanen dan tidak dapat dibatalkan.</p>
-                    <button onclick="alert('Fitur hapus akun akan tersedia segera!')" class="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition">
+                    </h3>
+                    <p class="text-gray-600 mb-4">
+                        Setelah menghapus akun, semua data Anda akan hilang permanen dan tidak dapat dipulihkan.
+                    </p>
+                    <button onclick="confirmDelete()" 
+                        class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition">
                         <i class="fas fa-trash mr-2"></i>Hapus Akun
                     </button>
                 </div>
@@ -320,32 +326,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 
-    <!-- Avatar Modal -->
-    <div id="avatarModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-gray-800">Pilih Avatar</h3>
-                <button onclick="document.getElementById('avatarModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times text-2xl"></i>
-                </button>
+    <!-- Modal Konfirmasi Delete -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 fade-in">
+            <div class="text-center mb-6">
+                <div class="bg-red-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-4xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Hapus Akun?</h3>
+                <p class="text-gray-600">Tindakan ini tidak dapat dibatalkan. Semua data Anda akan hilang permanen.</p>
             </div>
             <form method="POST">
-                <input type="hidden" name="action" value="change_avatar">
-                <div class="grid grid-cols-4 gap-4 mb-6">
-                    <?php 
-                    $colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FFEAA7', 'DFE6E9', 'A29BFE', 'FD79A8'];
-                    foreach ($colors as $color): 
-                    ?>
-                    <label class="cursor-pointer avatar-option">
-                        <input type="radio" name="avatar_style" value="<?php echo $color; ?>" class="sr-only peer">
-                        <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($userData['nama']); ?>&background=<?php echo $color; ?>&color=fff&size=80" 
-                            class="w-20 h-20 rounded-full border-4 border-transparent peer-checked:border-purple-600 hover:border-purple-300 transition">
-                    </label>
-                    <?php endforeach; ?>
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">Masukkan password untuk konfirmasi:</label>
+                    <input type="password" name="confirm_delete_password" required
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-600 focus:outline-none">
                 </div>
-                <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition">
-                    Simpan Avatar
-                </button>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="closeDeleteModal()"
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold transition">
+                        Batal
+                    </button>
+                    <button type="submit" name="delete_account"
+                        class="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition">
+                        Ya, Hapus Akun
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -366,42 +372,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
 
-        // Password strength indicator
-        document.getElementById('new_password')?.addEventListener('input', function() {
-            const password = this.value;
-            const strengthDiv = document.getElementById('password-strength');
-            let strength = 0;
-            let text = '';
-            let color = '';
+        function checkPasswordStrength() {
+            const password = document.getElementById('new_password').value;
+            const strengthBar = document.getElementById('strength-bar');
+            const strengthText = document.getElementById('strength-text');
             
+            let strength = 0;
             if (password.length >= 6) strength++;
             if (password.length >= 10) strength++;
             if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-            if (/\d/.test(password)) strength++;
-            if (/[^a-zA-Z\d]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
             
-            if (strength <= 2) {
-                text = 'Lemah';
-                color = 'bg-red-500';
-            } else if (strength <= 3) {
-                text = 'Sedang';
-                color = 'bg-yellow-500';
-            } else {
-                text = 'Kuat';
-                color = 'bg-green-500';
-            }
+            const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500', 'bg-green-600'];
+            const texts = ['Sangat Lemah', 'Lemah', 'Cukup', 'Kuat', 'Sangat Kuat'];
+            const widths = ['20%', '40%', '60%', '80%', '100%'];
             
-            if (password.length > 0) {
-                strengthDiv.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="flex-1 bg-gray-200 rounded-full h-2">
-                            <div class="${color} h-2 rounded-full" style="width: ${(strength/5)*100}%"></div>
-                        </div>
-                        <span class="text-sm font-semibold">${text}</span>
-                    </div>
-                `;
-            } else {
-                strengthDiv.innerHTML = '';
+            strengthBar.className = 'h-full transition-all ' + (colors[strength] || 'bg-gray-300');
+            strengthBar.style.width = widths[strength] || '0%';
+            strengthText.textContent = password ? texts[strength] || '' : '';
+            strengthText.className = 'text-xs mt-1 ' + (password ? 'text-gray-600' : '');
+        }
+
+        function confirmDelete() {
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        // Close modal on outside click
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
             }
         });
     </script>
