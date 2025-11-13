@@ -406,4 +406,6 @@ $settings = $_SESSION['settings'];
         }
     </script>
 </body>
+
 </html>
+
