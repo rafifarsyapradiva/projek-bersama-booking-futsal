@@ -416,4 +416,5 @@ $recent_users = array_slice(array_reverse($_SESSION['users']), 0, 5);
         });
     </script>
 </body>
+
 </html>
