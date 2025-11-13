@@ -463,4 +463,6 @@ $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'],
         });
     </script>
 </body>
+
 </html>
+
