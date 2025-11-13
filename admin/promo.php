@@ -502,4 +502,6 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
         });
     </script>
 </body>
+
 </html>
+
