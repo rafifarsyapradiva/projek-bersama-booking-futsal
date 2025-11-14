@@ -157,9 +157,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Statistics
+// Statistics - PERBAIKAN: Pastikan key 'status' ada
 $total_promo = count($_SESSION['promo']);
-$active_promo = count(array_filter($_SESSION['promo'], fn($p) => $p['status'] == 'active'));
+$active_promo = 0;
+foreach ($_SESSION['promo'] as $p) {
+    if (isset($p['status']) && $p['status'] == 'active') {
+        $active_promo++;
+    }
+}
 $total_terpakai = array_sum(array_column($_SESSION['promo'], 'terpakai'));
 $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
 ?>
@@ -180,7 +185,7 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Sidebar (sama seperti file sebelumnya) -->
+    <!-- Sidebar -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-red-600 to-pink-600 text-white shadow-2xl z-50">
         <div class="p-6 border-b border-red-500">
             <div class="flex items-center space-x-3">
@@ -312,6 +317,8 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
             <?php
             $progress = $promo['kuota'] > 0 ? ($promo['terpakai'] / $promo['kuota']) * 100 : 0;
             $is_expired = strtotime($promo['tanggal_selesai']) < time();
+            // PERBAIKAN: Pastikan key 'status' ada
+            $promo_status = isset($promo['status']) ? $promo['status'] : 'active';
             ?>
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition fade-in <?php echo $is_expired ? 'opacity-50' : ''; ?>">
                 <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
@@ -351,8 +358,8 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
                             </div>
                         </div>
                         <div>
-                            <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <?php echo $promo['status'] == 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
-                                <?php echo $is_expired ? 'Expired' : ucfirst($promo['status']); ?>
+                            <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <?php echo $promo_status == 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
+                                <?php echo $is_expired ? 'Expired' : ucfirst($promo_status); ?>
                             </span>
                         </div>
                     </div>
