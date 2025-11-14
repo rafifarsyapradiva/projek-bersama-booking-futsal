@@ -428,4 +428,6 @@ $rejected = count(array_filter($_SESSION['bookings'], fn($b) => $b['status'] == 
         });
     </script>
 </body>
+
 </html>
+
