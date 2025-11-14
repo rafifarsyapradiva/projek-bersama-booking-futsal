@@ -293,14 +293,20 @@ $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'],
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php foreach ($_SESSION['lapangan'] as $lap): ?>
             <?php 
-            // PERBAIKAN: Pastikan key 'status' ada sebelum digunakan
+            // PERBAIKAN: Pastikan semua keys ada sebelum digunakan
             $status = isset($lap['status']) ? $lap['status'] : 'available';
+            $foto = isset($lap['foto']) ? $lap['foto'] : 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=400';
+            $nama = isset($lap['nama']) ? $lap['nama'] : 'Lapangan';
+            $jenis = isset($lap['jenis']) ? $lap['jenis'] : 'Vinyl';
+            $harga_per_jam = isset($lap['harga_per_jam']) ? $lap['harga_per_jam'] : 0;
+            $fasilitas = isset($lap['fasilitas']) ? $lap['fasilitas'] : [];
+            $keterangan = isset($lap['keterangan']) ? $lap['keterangan'] : '-';
             ?>
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition fade-in">
-                <img src="<?php echo $lap['foto']; ?>" alt="" class="w-full h-48 object-cover">
+                <img src="<?php echo $foto; ?>" alt="" class="w-full h-48 object-cover">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($lap['nama']); ?></h3>
+                        <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($nama); ?></h3>
                         <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <?php echo $status == 'available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?>">
                             <?php echo ucfirst($status); ?>
                         </span>
@@ -309,23 +315,23 @@ $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'],
                     <div class="space-y-2 mb-4 text-sm">
                         <div class="flex items-center text-gray-600">
                             <i class="fas fa-tag w-5 mr-2"></i>
-                            <span><?php echo $lap['jenis']; ?></span>
+                            <span><?php echo htmlspecialchars($jenis); ?></span>
                         </div>
                         <div class="flex items-center text-gray-600">
                             <i class="fas fa-money-bill-wave w-5 mr-2"></i>
-                            <span class="font-bold text-green-600">Rp <?php echo number_format($lap['harga_per_jam'], 0, ',', '.'); ?>/jam</span>
+                            <span class="font-bold text-green-600">Rp <?php echo number_format($harga_per_jam, 0, ',', '.'); ?>/jam</span>
                         </div>
                         <div class="flex items-start text-gray-600">
                             <i class="fas fa-star w-5 mr-2 mt-1"></i>
                             <div class="flex-1 flex flex-wrap gap-1">
-                                <?php foreach ($lap['fasilitas'] as $fas): ?>
-                                <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded"><?php echo $fas; ?></span>
+                                <?php foreach ($fasilitas as $fas): ?>
+                                <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded"><?php echo htmlspecialchars($fas); ?></span>
                                 <?php endforeach; ?>
                             </div>
                         </div>
                         <div class="flex items-start text-gray-600">
                             <i class="fas fa-info-circle w-5 mr-2 mt-1"></i>
-                            <span class="text-xs"><?php echo htmlspecialchars($lap['keterangan']); ?></span>
+                            <span class="text-xs"><?php echo htmlspecialchars($keterangan); ?></span>
                         </div>
                     </div>
 
@@ -453,17 +459,17 @@ $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'],
 
         function editLapangan(lap) {
             document.getElementById('modalTitle').textContent = 'Edit Lapangan';
-            document.getElementById('lapangan_id').value = lap.id;
-            document.getElementById('nama').value = lap.nama;
-            document.getElementById('jenis').value = lap.jenis;
-            document.getElementById('harga_per_jam').value = lap.harga_per_jam;
+            document.getElementById('lapangan_id').value = lap.id || '';
+            document.getElementById('nama').value = lap.nama || '';
+            document.getElementById('jenis').value = lap.jenis || 'Vinyl';
+            document.getElementById('harga_per_jam').value = lap.harga_per_jam || 0;
             document.getElementById('status').value = lap.status || 'available';
-            document.getElementById('keterangan').value = lap.keterangan;
+            document.getElementById('keterangan').value = lap.keterangan || '';
             document.getElementById('submitBtn').name = 'edit_lapangan';
             
             // Set fasilitas checkboxes
             document.querySelectorAll('input[name="fasilitas[]"]').forEach(cb => {
-                cb.checked = lap.fasilitas.includes(cb.value);
+                cb.checked = lap.fasilitas && lap.fasilitas.includes(cb.value);
             });
             
             document.getElementById('formModal').classList.remove('hidden');
