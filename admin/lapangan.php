@@ -138,10 +138,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Statistics
+// Statistics - PERBAIKAN: Pastikan setiap elemen array memiliki key 'status'
 $total_lapangan = count($_SESSION['lapangan']);
-$available = count(array_filter($_SESSION['lapangan'], fn($l) => $l['status'] == 'available'));
-$maintenance = count(array_filter($_SESSION['lapangan'], fn($l) => $l['status'] == 'maintenance'));
+$available = 0;
+$maintenance = 0;
+
+foreach ($_SESSION['lapangan'] as $lap) {
+    if (isset($lap['status'])) {
+        if ($lap['status'] == 'available') {
+            $available++;
+        } elseif ($lap['status'] == 'maintenance') {
+            $maintenance++;
+        }
+    }
+}
+
 $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'], 'harga_per_jam')) / $total_lapangan : 0;
 ?>
 <!DOCTYPE html>
@@ -281,13 +292,17 @@ $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'],
         <!-- Lapangan Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php foreach ($_SESSION['lapangan'] as $lap): ?>
+            <?php 
+            // PERBAIKAN: Pastikan key 'status' ada sebelum digunakan
+            $status = isset($lap['status']) ? $lap['status'] : 'available';
+            ?>
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition fade-in">
                 <img src="<?php echo $lap['foto']; ?>" alt="" class="w-full h-48 object-cover">
                 <div class="p-6">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($lap['nama']); ?></h3>
-                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <?php echo $lap['status'] == 'available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?>">
-                            <?php echo ucfirst($lap['status']); ?>
+                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <?php echo $status == 'available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?>">
+                            <?php echo ucfirst($status); ?>
                         </span>
                     </div>
 
@@ -442,7 +457,7 @@ $avg_price = $total_lapangan > 0 ? array_sum(array_column($_SESSION['lapangan'],
             document.getElementById('nama').value = lap.nama;
             document.getElementById('jenis').value = lap.jenis;
             document.getElementById('harga_per_jam').value = lap.harga_per_jam;
-            document.getElementById('status').value = lap.status;
+            document.getElementById('status').value = lap.status || 'available';
             document.getElementById('keterangan').value = lap.keterangan;
             document.getElementById('submitBtn').name = 'edit_lapangan';
             
