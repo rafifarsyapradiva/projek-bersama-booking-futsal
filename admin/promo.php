@@ -315,43 +315,55 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php foreach ($_SESSION['promo'] as $promo): ?>
             <?php
-            $progress = $promo['kuota'] > 0 ? ($promo['terpakai'] / $promo['kuota']) * 100 : 0;
-            $is_expired = strtotime($promo['tanggal_selesai']) < time();
-            // PERBAIKAN: Pastikan key 'status' ada
+            // PERBAIKAN: Pastikan semua keys ada dengan default values
+            $kode = isset($promo['kode']) ? $promo['kode'] : 'PROMO';
+            $nama = isset($promo['nama']) ? $promo['nama'] : 'Promo';
+            $tipe = isset($promo['tipe']) ? $promo['tipe'] : 'percentage';
+            $nilai = isset($promo['nilai']) ? $promo['nilai'] : 0;
+            $min_transaksi = isset($promo['min_transaksi']) ? $promo['min_transaksi'] : 0;
+            $max_diskon = isset($promo['max_diskon']) ? $promo['max_diskon'] : 0;
+            $tanggal_mulai = isset($promo['tanggal_mulai']) ? $promo['tanggal_mulai'] : date('Y-m-d');
+            $tanggal_selesai = isset($promo['tanggal_selesai']) ? $promo['tanggal_selesai'] : date('Y-m-d');
+            $terpakai = isset($promo['terpakai']) ? $promo['terpakai'] : 0;
+            $kuota = isset($promo['kuota']) ? $promo['kuota'] : 0;
+            $deskripsi = isset($promo['deskripsi']) ? $promo['deskripsi'] : '';
             $promo_status = isset($promo['status']) ? $promo['status'] : 'active';
+            
+            $progress = $kuota > 0 ? ($terpakai / $kuota) * 100 : 0;
+            $is_expired = strtotime($tanggal_selesai) < time();
             ?>
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition fade-in <?php echo $is_expired ? 'opacity-50' : ''; ?>">
                 <div class="bg-gradient-to-r from-purple-500 to-pink-500 p-4 text-white">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-2xl font-bold font-mono"><?php echo $promo['kode']; ?></h3>
+                        <h3 class="text-2xl font-bold font-mono"><?php echo htmlspecialchars($kode); ?></h3>
                         <span class="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">
-                            <?php echo $promo['tipe'] == 'percentage' ? $promo['nilai'] . '%' : 'Rp ' . number_format($promo['nilai'], 0, ',', '.'); ?>
+                            <?php echo $tipe == 'percentage' ? $nilai . '%' : 'Rp ' . number_format($nilai, 0, ',', '.'); ?>
                         </span>
                     </div>
-                    <p class="text-sm text-purple-100"><?php echo htmlspecialchars($promo['nama']); ?></p>
+                    <p class="text-sm text-purple-100"><?php echo htmlspecialchars($nama); ?></p>
                 </div>
 
                 <div class="p-6">
                     <div class="space-y-3 mb-4 text-sm">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-600">Min. Transaksi:</span>
-                            <span class="font-semibold">Rp <?php echo number_format($promo['min_transaksi'], 0, ',', '.'); ?></span>
+                            <span class="font-semibold">Rp <?php echo number_format($min_transaksi, 0, ',', '.'); ?></span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-gray-600">Max. Diskon:</span>
-                            <span class="font-semibold">Rp <?php echo number_format($promo['max_diskon'], 0, ',', '.'); ?></span>
+                            <span class="font-semibold">Rp <?php echo number_format($max_diskon, 0, ',', '.'); ?></span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-gray-600">Periode:</span>
                             <span class="font-semibold text-xs">
-                                <?php echo date('d/m/Y', strtotime($promo['tanggal_mulai'])); ?> - 
-                                <?php echo date('d/m/Y', strtotime($promo['tanggal_selesai'])); ?>
+                                <?php echo date('d/m/Y', strtotime($tanggal_mulai)); ?> - 
+                                <?php echo date('d/m/Y', strtotime($tanggal_selesai)); ?>
                             </span>
                         </div>
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                 <span class="text-gray-600">Kuota:</span>
-                                <span class="font-semibold"><?php echo $promo['terpakai']; ?> / <?php echo $promo['kuota']; ?></span>
+                                <span class="font-semibold"><?php echo $terpakai; ?> / <?php echo $kuota; ?></span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full" style="width: <?php echo $progress; ?>%"></div>
@@ -364,7 +376,7 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
                         </div>
                     </div>
 
-                    <p class="text-xs text-gray-600 mb-4 italic"><?php echo htmlspecialchars($promo['deskripsi']); ?></p>
+                    <p class="text-xs text-gray-600 mb-4 italic"><?php echo htmlspecialchars($deskripsi); ?></p>
 
                     <div class="flex gap-2">
                         <button onclick="editPromo(<?php echo htmlspecialchars(json_encode($promo)); ?>)" 
@@ -484,18 +496,18 @@ $total_kuota = array_sum(array_column($_SESSION['promo'], 'kuota'));
 
         function editPromo(promo) {
             document.getElementById('modalTitle').textContent = 'Edit Promo';
-            document.getElementById('promo_id').value = promo.id;
-            document.getElementById('kode').value = promo.kode;
+            document.getElementById('promo_id').value = promo.id || '';
+            document.getElementById('kode').value = promo.kode || '';
             document.getElementById('kode').readOnly = true;
-            document.getElementById('nama').value = promo.nama;
-            document.getElementById('tipe').value = promo.tipe;
-            document.getElementById('nilai').value = promo.nilai;
-            document.getElementById('min_transaksi').value = promo.min_transaksi;
-            document.getElementById('max_diskon').value = promo.max_diskon;
-            document.getElementById('kuota').value = promo.kuota;
-            document.getElementById('tanggal_mulai').value = promo.tanggal_mulai;
-            document.getElementById('tanggal_selesai').value = promo.tanggal_selesai;
-            document.getElementById('deskripsi').value = promo.deskripsi;
+            document.getElementById('nama').value = promo.nama || '';
+            document.getElementById('tipe').value = promo.tipe || 'percentage';
+            document.getElementById('nilai').value = promo.nilai || 0;
+            document.getElementById('min_transaksi').value = promo.min_transaksi || 0;
+            document.getElementById('max_diskon').value = promo.max_diskon || 0;
+            document.getElementById('kuota').value = promo.kuota || 0;
+            document.getElementById('tanggal_mulai').value = promo.tanggal_mulai || '';
+            document.getElementById('tanggal_selesai').value = promo.tanggal_selesai || '';
+            document.getElementById('deskripsi').value = promo.deskripsi || '';
             document.getElementById('submitBtn').name = 'edit_promo';
             document.getElementById('formModal').classList.remove('hidden');
         }
