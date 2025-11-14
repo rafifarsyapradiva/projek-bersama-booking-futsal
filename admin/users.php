@@ -156,8 +156,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 $total_members = count($_SESSION['users']);
 $active_members = 0;
 $suspended_members = 0;
+$total_revenue = 0;
+$total_bookings = 0;
 
 foreach ($_SESSION['users'] as $u) {
+    // Hitung status
     if (isset($u['status'])) {
         if ($u['status'] == 'active') {
             $active_members++;
@@ -165,10 +168,17 @@ foreach ($_SESSION['users'] as $u) {
             $suspended_members++;
         }
     }
+    
+    // Hitung total revenue
+    if (isset($u['total_transaksi'])) {
+        $total_revenue += $u['total_transaksi'];
+    }
+    
+    // Hitung total bookings
+    if (isset($u['total_booking'])) {
+        $total_bookings += $u['total_booking'];
+    }
 }
-
-$total_revenue = array_sum(array_column($_SESSION['users'], 'total_transaksi'));
-$total_bookings = array_sum(array_column($_SESSION['users'], 'total_booking'));
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -340,11 +350,20 @@ $total_bookings = array_sum(array_column($_SESSION['users'], 'total_booking'));
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         <?php foreach ($_SESSION['users'] as $user): ?>
-                        <?php $user_status = isset($user['status']) ? $user['status'] : 'active'; ?>
+                        <?php 
+                        // Pastikan semua key ada dengan default values
+                        $user_status = isset($user['status']) ? $user['status'] : 'active';
+                        $user_foto = isset($user['foto']) ? $user['foto'] : 'https://ui-avatars.com/api/?name=' . urlencode($user['nama']) . '&background=random';
+                        $user_tanggal_daftar = isset($user['tanggal_daftar']) ? $user['tanggal_daftar'] : date('Y-m-d');
+                        $user_total_booking = isset($user['total_booking']) ? $user['total_booking'] : 0;
+                        $user_total_transaksi = isset($user['total_transaksi']) ? $user['total_transaksi'] : 0;
+                        $user_telepon = isset($user['telepon']) ? $user['telepon'] : '-';
+                        $user_alamat = isset($user['alamat']) ? $user['alamat'] : '-';
+                        ?>
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
-                                    <img src="<?php echo $user['foto']; ?>" alt="" class="w-10 h-10 rounded-full mr-3">
+                                    <img src="<?php echo $user_foto; ?>" alt="" class="w-10 h-10 rounded-full mr-3">
                                     <div>
                                         <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($user['nama']); ?></div>
                                         <div class="text-sm text-gray-500"><?php echo htmlspecialchars($user['email']); ?></div>
@@ -352,19 +371,19 @@ $total_bookings = array_sum(array_column($_SESSION['users'], 'total_booking'));
                                 </div>
                             </td>
                             <td class="px-6 py-4">
-                                <div class="text-sm text-gray-800"><?php echo htmlspecialchars($user['telepon']); ?></div>
-                                <div class="text-xs text-gray-500"><?php echo htmlspecialchars($user['alamat']); ?></div>
+                                <div class="text-sm text-gray-800"><?php echo htmlspecialchars($user_telepon); ?></div>
+                                <div class="text-xs text-gray-500"><?php echo htmlspecialchars($user_alamat); ?></div>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">
-                                <?php echo date('d/m/Y', strtotime($user['tanggal_daftar'])); ?>
+                                <?php echo date('d/m/Y', strtotime($user_tanggal_daftar)); ?>
                             </td>
                             <td class="px-6 py-4">
                                 <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
-                                    <?php echo $user['total_booking']; ?>x
+                                    <?php echo $user_total_booking; ?>x
                                 </span>
                             </td>
                             <td class="px-6 py-4 font-semibold text-green-600">
-                                Rp <?php echo number_format($user['total_transaksi'], 0, ',', '.'); ?>
+                                Rp <?php echo number_format($user_total_transaksi, 0, ',', '.'); ?>
                             </td>
                             <td class="px-6 py-4">
                                 <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full <?php echo $user_status == 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
@@ -484,38 +503,44 @@ $total_bookings = array_sum(array_column($_SESSION['users'], 'total_booking'));
         }
 
         function viewUser(user) {
+            // Pastikan semua nilai ada dengan default values
+            const tanggalDaftar = user.tanggal_daftar || new Date().toISOString().split('T')[0];
+            const totalBooking = user.total_booking || 0;
+            const totalTransaksi = user.total_transaksi || 0;
+            const status = user.status || 'active';
+            
             const content = `
                 <div class="flex items-center space-x-4 mb-6">
-                    <img src="${user.foto}" alt="" class="w-20 h-20 rounded-full">
+                    <img src="${user.foto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.nama)}" alt="" class="w-20 h-20 rounded-full">
                     <div>
-                        <h4 class="text-2xl font-bold text-gray-800">${user.nama}</h4>
-                        <p class="text-gray-600">${user.email}</p>
+                        <h4 class="text-2xl font-bold text-gray-800">${user.nama || '-'}</h4>
+                        <p class="text-gray-600">${user.email || '-'}</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="border-l-4 border-blue-500 pl-4">
                         <p class="text-gray-500 text-sm">Nomor Telepon</p>
-                        <p class="font-semibold text-gray-800">${user.telepon}</p>
+                        <p class="font-semibold text-gray-800">${user.telepon || '-'}</p>
                     </div>
                     <div class="border-l-4 border-green-500 pl-4">
                         <p class="text-gray-500 text-sm">Tanggal Daftar</p>
-                        <p class="font-semibold text-gray-800">${new Date(user.tanggal_daftar).toLocaleDateString('id-ID')}</p>
+                        <p class="font-semibold text-gray-800">${new Date(tanggalDaftar).toLocaleDateString('id-ID')}</p>
                     </div>
                     <div class="border-l-4 border-purple-500 pl-4">
                         <p class="text-gray-500 text-sm">Total Booking</p>
-                        <p class="font-semibold text-gray-800">${user.total_booking} kali</p>
+                        <p class="font-semibold text-gray-800">${totalBooking} kali</p>
                     </div>
                     <div class="border-l-4 border-yellow-500 pl-4">
                         <p class="text-gray-500 text-sm">Total Transaksi</p>
-                        <p class="font-semibold text-gray-800">Rp ${user.total_transaksi.toLocaleString('id-ID')}</p>
+                        <p class="font-semibold text-gray-800">Rp ${totalTransaksi.toLocaleString('id-ID')}</p>
                     </div>
                     <div class="col-span-2 border-l-4 border-red-500 pl-4">
                         <p class="text-gray-500 text-sm">Alamat</p>
-                        <p class="font-semibold text-gray-800">${user.alamat}</p>
+                        <p class="font-semibold text-gray-800">${user.alamat || '-'}</p>
                     </div>
                     <div class="col-span-2 border-l-4 border-indigo-500 pl-4">
                         <p class="text-gray-500 text-sm">Status</p>
-                        <p class="font-semibold ${user.status === 'active' ? 'text-green-600' : 'text-red-600'}">${user.status === 'active' ? 'Aktif' : 'Suspended'}</p>
+                        <p class="font-semibold ${status === 'active' ? 'text-green-600' : 'text-red-600'}">${status === 'active' ? 'Aktif' : 'Suspended'}</p>
                     </div>
                 </div>
             `;
